@@ -1,4 +1,4 @@
-// RecipeFix - content.js v3.0
+// RecipeFix - content.js v4.0
 // Inline ingredient measurement pills injected into recipe directions.
 // Pill = empty outline. Tap = fills green with checkmark. Tap again = undone.
 // No sidebar. No settings. No activation button. It just works.
@@ -10,6 +10,7 @@
   window.__recipeFixRan = true;
 
   const DONE = new Set();
+  let isRunning = false;
 
   const IS_MOBILE = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
     || (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent));
@@ -19,6 +20,8 @@
     "⅛":"1/8","⅜":"3/8","⅝":"5/8","⅞":"7/8","⅙":"1/6","⅚":"5/6",
   };
   function normalizeText(t) {
+    t = t.replace(/[▢□■●○◉✓✔☑☐☒✗✘]/g, "");
+    t = t.replace(/\((\d+)\)\s*(\d+)/g, "$1 $2");
     return t.replace(/[½⅓⅔¼¾⅛⅜⅝⅞⅙⅚]/g, m => UNICODE_FRACTIONS[m] || m);
   }
 
@@ -101,6 +104,93 @@
         '[class*="method"] li',
         ".directions li",
         ".steps li",
+      ],
+    },
+    "bbc.co.uk": {
+      ingredientSelectors: [
+        ".recipe__ingredients li",
+        ".ingredients-list__item",
+        '[class*="ingredient"] li',
+      ],
+      stepSelectors: [
+        ".recipe__method-steps li p",
+        ".recipe__method-steps li",
+        '[class*="method"] li',
+        ".directions li",
+      ],
+    },
+    "food52.com": {
+      ingredientSelectors: [
+        "ul.space-y-4 li",
+        '[class*="ingredient"] li',
+      ],
+      stepSelectors: [
+        "ul.space-y-4 li p",
+        '[class*="direction"] p',
+        '[class*="step"] p',
+      ],
+    },
+    "epicurious.com": {
+      ingredientSelectors: [
+        '[data-testid="IngredientList"] li',
+        '[class*="ingredient"] li',
+        ".ingredients-item",
+      ],
+      stepSelectors: [
+        '[data-testid="InstructionsWrapper"] p',
+        '[class*="instruction"] p',
+        '[class*="step"] p',
+      ],
+    },
+    "simplyrecipes.com": {
+      ingredientSelectors: [
+        ".structured-ingredients__list-item",
+        '[class*="ingredient"] li',
+        ".ingredient-list li",
+      ],
+      stepSelectors: [
+        ".structured-project__steps li",
+        '[class*="step"] p',
+        '[class*="direction"] li',
+      ],
+    },
+    "tasty.co": {
+      ingredientSelectors: [
+        ".ingredient-item",
+        '[class*="ingredient"] li',
+        ".tasty-recipes-ingredients li",
+      ],
+      stepSelectors: [
+        ".tasty-recipes-instructions li",
+        '[class*="instruction"] li',
+        '[class*="preparation"] li',
+        "ol li p",
+        "ol li",
+      ],
+    },
+    "delish.com": {
+      ingredientSelectors: [
+        '[class*="ingredient"] li',
+        ".ingredient-item",
+        '[data-ingredient]',
+      ],
+      stepSelectors: [
+        '[class*="direction"] li p',
+        '[class*="direction"] li',
+        '[class*="step"] p',
+        "ol li p",
+        "ol li",
+      ],
+    },
+    "budgetbytes.com": {
+      ingredientSelectors: [
+        ".wprm-recipe-ingredient",
+        '[class*="ingredient"] li',
+      ],
+      stepSelectors: [
+        ".wprm-recipe-instruction-text",
+        '[class*="instruction"] li p',
+        '[class*="instruction"] li',
       ],
     },
   };
@@ -242,7 +332,8 @@
         .replace(PREP_SUFFIX_RE, "")
         .trim();
       name = name.replace(makeModifierRe(), "").trim();
-      if (name.length < 2) return;
+      // Minimum 3 characters to avoid matching noise words
+      if (name.length < 3) return;
       const key = name.toLowerCase();
       if (seen.has(key)) return;
       seen.add(key);
@@ -259,7 +350,8 @@
       const words = ing.name.split(/\s+/);
       if (words.length > 1) {
         const lastWord = words[words.length - 1];
-        if (!existingNames.has(lastWord) && !aliasAdded.has(lastWord)) {
+        // Only alias if last word is 4+ characters to avoid matching "oil", "the" etc
+        if (lastWord.length >= 4 && !existingNames.has(lastWord) && !aliasAdded.has(lastWord)) {
           aliasAdded.add(lastWord);
           expanded.push({ ...ing, name: lastWord });
         }
@@ -358,6 +450,10 @@
   }
 
   function processStep(el, findMatches) {
+    // CRITICAL: skip already-processed elements to prevent duplicate badges
+    if (el.dataset.rfProcessed) return false;
+    el.dataset.rfProcessed = "1";
+
     const textNodes = [];
     const walker    = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, {
       acceptNode(node) {
@@ -376,6 +472,9 @@
 
   function removeBadges() {
     document.querySelectorAll("[data-rf-badge]").forEach(b => b.remove());
+    document.querySelectorAll("[data-rf-processed]").forEach(el => {
+      delete el.dataset.rfProcessed;
+    });
   }
 
   function showToast(msg, duration = 3500) {
@@ -407,9 +506,6 @@
     }, duration);
   }
 
-  // --- FIXED: smarter content detection that checks for actual text content,
-  // not just element presence. WPRM and lazy-loaded sites render empty
-  // elements first, then populate them — this waits for real content.
   function waitForContent(config, callback) {
     const ingredientSelectors = [
       ...(config?.ingredientSelectors || []),
@@ -423,7 +519,6 @@
     ];
 
     function hasRealContent() {
-      // Check JSON-LD first — always reliable and instant
       const scripts = document.querySelectorAll('script[type="application/ld+json"]');
       for (const s of scripts) {
         try {
@@ -435,7 +530,6 @@
           })) return true;
         } catch (_) {}
       }
-      // Check DOM — must have BOTH ingredients AND steps with actual text
       let hasIngs  = false;
       let hasSteps = false;
       for (const sel of ingredientSelectors) {
@@ -453,7 +547,6 @@
       return hasIngs && hasSteps;
     }
 
-    // Retry schedule: fast at first, then patient. Total wait up to ~12 seconds.
     const delays  = [300, 600, 1000, 1500, 2000, 3000, 4000];
     let   attempt = 0;
     (function attempt_() {
@@ -479,47 +572,47 @@
         }, 1000);
         return;
       }
-      if (!document.querySelector("[data-rf-badge]")) {
-        clearTimeout(debounce);
-        debounce = setTimeout(() => {
-          if (!document.querySelector("[data-rf-badge]")) run();
-        }, 1500);
-      }
     });
     observer.observe(document.body, { childList: true, subtree: true });
   }
 
   function run() {
-    removeBadges();
-    const config = getSiteConfig();
-    let ingredientEls = config ? queryAll(config.ingredientSelectors) : [];
-    let stepEls       = config ? queryAll(config.stepSelectors)       : [];
-    if (!ingredientEls.length) {
-      ingredientEls = queryAll(SCHEMA_CONFIG.ingredientSelectors);
-      if (!ingredientEls.length) ingredientEls = parseJsonLd();
+    if (isRunning) return;
+    isRunning = true;
+
+    try {
+      const config = getSiteConfig();
+      let ingredientEls = config ? queryAll(config.ingredientSelectors) : [];
+      let stepEls       = config ? queryAll(config.stepSelectors)       : [];
+      if (!ingredientEls.length) {
+        ingredientEls = queryAll(SCHEMA_CONFIG.ingredientSelectors);
+        if (!ingredientEls.length) ingredientEls = parseJsonLd();
+      }
+      if (!stepEls.length) stepEls = queryAll(SCHEMA_CONFIG.stepSelectors);
+      let usedFallback = false;
+      if (!ingredientEls.length || !stepEls.length) {
+        if (!ingredientEls.length) ingredientEls = queryAll(AGGRESSIVE_CONFIG.ingredientSelectors);
+        if (!stepEls.length)       stepEls       = queryAll(AGGRESSIVE_CONFIG.stepSelectors);
+        usedFallback = true;
+      }
+      if (!ingredientEls.length || !stepEls.length) return;
+      const ingredients = parseIngredients(ingredientEls);
+      if (!ingredients.length) return;
+      const findMatches = buildMatcher(ingredients);
+      let   badgeCount  = 0;
+      stepEls.forEach(el => {
+        const before = el.querySelectorAll("[data-rf-badge]").length;
+        processStep(el, findMatches);
+        badgeCount += el.querySelectorAll("[data-rf-badge]").length - before;
+      });
+      if (!badgeCount) return;
+      showToast(usedFallback
+        ? `✓ RecipeFix · ${badgeCount} badges (fallback) · tap to mark done`
+        : `✓ RecipeFix · ${badgeCount} badges · tap to mark done`
+      );
+    } finally {
+      isRunning = false;
     }
-    if (!stepEls.length) stepEls = queryAll(SCHEMA_CONFIG.stepSelectors);
-    let usedFallback = false;
-    if (!ingredientEls.length || !stepEls.length) {
-      if (!ingredientEls.length) ingredientEls = queryAll(AGGRESSIVE_CONFIG.ingredientSelectors);
-      if (!stepEls.length)       stepEls       = queryAll(AGGRESSIVE_CONFIG.stepSelectors);
-      usedFallback = true;
-    }
-    if (!ingredientEls.length || !stepEls.length) return;
-    const ingredients = parseIngredients(ingredientEls);
-    if (!ingredients.length) return;
-    const findMatches = buildMatcher(ingredients);
-    let   badgeCount  = 0;
-    stepEls.forEach(el => {
-      const before = el.querySelectorAll("[data-rf-badge]").length;
-      processStep(el, findMatches);
-      badgeCount += el.querySelectorAll("[data-rf-badge]").length - before;
-    });
-    if (!badgeCount) return;
-    showToast(usedFallback
-      ? `✓ RecipeFix · ${badgeCount} badges (fallback) · tap to mark done`
-      : `✓ RecipeFix · ${badgeCount} badges · tap to mark done`
-    );
   }
 
   const config = getSiteConfig();
