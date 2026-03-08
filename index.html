@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>RecipeFix – Inline ingredient badges for recipe directions. Tap to mark done.</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta
+    name="description"
+    content="RecipeFix adds inline ingredient badges to recipe directions so you can tap each one as you go. No sign‑up, no tracking, just calmer cooking."
+  >
+  <style>
+    :root {
+      --bg: #f7f4f0;
+      --card-bg: #ffffff;
+      --accent: #f08a4b;
+      --accent-soft: #ffe4d2;
+      --accent-dark: #b75620;
+      --text: #2b2b2b;
+      --muted: #666666;
+      --border: #e0d7cc;
+      --badge: #fdf5ed;
+      --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.06);
+      --radius-lg: 14px;
+      --radius-pill: 999px;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, -system-ui, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: var(--font-sans);
+      background: radial-gradient(circle at top left, #fff9f2 0, #f7f4f0 45%, #f0ece6 100%);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a {
+      color: var(--accent-dark);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .page {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 32px 20px 48px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: conic-gradient(from 210deg, #f08a4b, #ffd490, #ffeede, #f08a4b);
+      position: relative;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo-badge {
+      width: 19px;
+      height: 19px;
+      border-radius: 7px;
+      background: #fff;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .logo-badge::before,
+    .logo-badge::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+    }
+
+    .logo-badge::before {
+      background: linear-gradient(135deg, #ffe8d3 0, #ffd0aa 50%, #f5b77f 100%);
+    }
+
+    .logo-badge::after {
+      background:
+        radial-gradient(circle at 25% 20%, rgba(255, 255, 255, 0.75), transparent 55%),
+        radial-gradient(circle at 80% 80%, rgba(240, 138, 75, 0.4), transparent 60%);
+      mix-blend-mode: screen;
+      opacity: 0.9;
+    }
+
+    .brand-text h1 {
+      font-size: 1.6rem;
+      margin: 0;
+      letter-spacing: 0.02em;
+    }
+
+    .brand-text p {
+      margin: 2px 0 0;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    nav {
+      display: flex;
+      gap: 14px;
+      font-size: 0.9rem;
+    }
+
+    .nav-link {
+      padding: 7px 12px;
+      border-radius: var(--radius-pill);
+      background: rgba(255, 255, 255, 0.65);
+      border: 1px solid rgba(224, 215, 204, 0.6);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.03);
+      backdrop-filter: blur(6px);
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.1fr);
+      gap: 28px;
+      align-items: flex-start;
+    }
+
+    .hero-card {
+      background: rgba(255, 255, 255, 0.96);
+      border-radius: 24px;
+      padding: 28px 26px;
+      box-shadow: var(--shadow-soft);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 10px;
+      border-radius: var(--radius-pill);
+      background: var(--accent-soft);
+      color: var(--accent-dark);
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .eyebrow-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: var(--accent);
+      box-shadow: 0 0 0 4px rgba(240, 138, 75, 0.2);
+    }
+
+    h2.hero-title {
+      font-size: 2rem;
+      line-height: 1.15;
+      margin: 0 0 12px;
+    }
+
+    .hero-subtitle {
+      font-size: 1rem;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+
+    .primary-button {
+      padding: 10px 18px;
+      border-radius: var(--radius-pill);
+      border: none;
+      background: linear-gradient(135deg, #f49552, #f08a4b);
+      color: #fff;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: default;
+      box-shadow: 0 10px 22px rgba(240, 138, 75, 0.36);
+    }
+
+    .primary-button span {
+      font-size: 0.8rem;
+      opacity: 0.9;
+    }
+
+    .secondary-link {
+      font-size: 0.88rem;
+      color: var(--accent-dark);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    .hero-footnote {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .steps {
+      margin-top: 22px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 10px 12px;
+      align-items: flex-start;
+      padding: 10px 11px;
+      border-radius: 12px;
+      background: #fdf9f5;
+      border: 1px solid rgba(224, 215, 204, 0.8);
+    }
+
+    .step-number {
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      background: var(--badge);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--accent-dark);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.07);
+    }
+
+    .step-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .step-body {
+      grid-column: 2 / -1;
+      font-size: 0.86rem;
+      color: var(--muted);
+    }
+
+    .demo-card {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 24px;
+      padding: 20px 18px 18px;
+      box-shadow: var(--shadow-soft);
+      border: 1px solid rgba(255, 255, 255, 0.9);
+    }
+
+    .demo-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 12px;
+      gap: 10px;
+    }
+
+    .demo-title {
+      font-size: 0.98rem;
+      font-weight: 600;
+    }
+
+    .demo-note {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .demo-panel {
+      border-radius: 15px;
+      background: #fffaf6;
+      border: 1px solid var(--border);
+      padding: 12px 13px;
+    }
+
+    .demo-ingredients,
+    .demo-directions {
+      margin-bottom: 8px;
+    }
+
+    .demo-heading {
+      font-size: 0.85rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 5px;
+    }
+
+    .demo-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      font-size: 0.86rem;
+      color: var(--text);
+    }
+
+    .demo-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      margin-bottom: 3px;
+    }
+
+    .demo-bullet {
+      margin-top: 4px;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .badge-row {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-left: 6px;
+    }
+
+    .badge {
+      font-size: 0.7rem;
+      padding: 3px 7px 4px;
+      border-radius: var(--radius-pill);
+      background: var(--badge);
+      border: 1px solid rgba(240, 138, 75, 0.4);
+      color: var(--accent-dark);
+      position: relative;
+      cursor: pointer;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .badge::after {
+      content: "Tap";
+      position: absolute;
+      top: -11px;
+      right: 0;
+      font-size: 0.6rem;
+      background: #fff7ef;
+      border-radius: 999px;
+      padding: 1px 6px;
+      border: 1px solid rgba(240, 138, 75, 0.5);
+      color: var(--accent-dark);
+    }
+
+    .badge.done {
+      background: #e3f5d7;
+      border-color: #8bb45f;
+      color: #486825;
+      text-decoration: line-through;
+    }
+
+    .privacy-strip {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px dashed rgba(205, 191, 171, 0.8);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .privacy-pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .privacy-pill {
+      padding: 3px 10px;
+      border-radius: var(--radius-pill);
+      background: #f2eee7;
+      border: 1px solid rgba(210, 197, 181, 0.9);
+    }
+
+    footer {
+      margin-top: 32px;
+      font-size: 0.8rem;
+      color: var(--muted);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    footer nav {
+      gap: 10px;
+    }
+
+    @media (max-width: 780px) {
+      main {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .hero-card {
+        padding: 22px 18px;
+      }
+
+      .demo-card {
+        padding: 18px 15px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <div class="brand">
+        <div class="logo">
+          <div class="logo-badge"></div>
+        </div>
+        <div class="brand-text">
+          <h1>RecipeFix</h1>
+          <p>Inline ingredient badges for calmer cooking.</p>
+        </div>
+      </div>
+      <nav>
+        <a class="nav-link" href="#how-it-works">How it works</a>
+        <a class="nav-link" href="privacy.html">Privacy</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero-card">
+        <div class="eyebrow">
+          <span class="eyebrow-dot"></span>
+          <span>Chrome extension for home cooks</span>
+        </div>
+        <h2 class="hero-title">
+          Inline ingredient badges for recipe directions.<br>Tap to mark done.
+        </h2>
+        <p class="hero-subtitle">
+          RecipeFix reads the ingredients on any recipe page and adds small tappable badges
+          right inside the directions. As you cook, tap each badge to mark it done and
+          keep your place without losing track.
+        </p>
+
+        <div class="hero-actions">
+          <button class="primary-button" type="button">
+            Add to Chrome
+            <span> &nbsp;– search for “RecipeFix” in the Chrome Web Store</span>
+          </button>
+          <a class="secondary-link" href="https://autopilot869.github.io/recipefix">
+            Visit the RecipeFix homepage
+          </a>
+        </div>
+        <p class="hero-footnote">
+          Works on your favorite recipe sites. No account needed.
+        </p>
+
+        <div id="how-it-works" class="steps" aria-label="How RecipeFix works">
+          <div class="step">
+            <div class="step-number">1</div>
+            <div>
+              <div class="step-title">Open any online recipe</div>
+              <p class="step-body">
+                Browse to a recipe as you normally would. RecipeFix quietly looks for the
+                ingredient list and the cooking directions on the page.
+              </p>
+            </div>
+          </div>
+
+          <div class="step">
+            <div class="step-number">2</div>
+            <div>
+              <div class="step-title">See ingredients as inline badges</div>
+              <p class="step-body">
+                When you scroll to the directions, you’ll see small badges appear next to
+                each ingredient mentioned in a step. Each badge matches an item from the
+                ingredient list.
+              </p>
+            </div>
+          </div>
+
+          <div class="step">
+            <div class="step-number">3</div>
+            <div>
+              <div class="step-title">Tap to mark each one done</div>
+              <p class="step-body">
+                As you cook, tap the badges to mark ingredients you’ve already used.
+                It’s a simple visual checklist that lives right where you’re reading,
+                so you don’t have to keep jumping up and down the page.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="demo-card" aria-label="RecipeFix demo example">
+        <div class="demo-header">
+          <div class="demo-title">What RecipeFix looks like on a recipe</div>
+          <div class="demo-note">Illustration of badges inside directions</div>
+        </div>
+
+        <div class="demo-panel">
+          <div class="demo-ingredients">
+            <div class="demo-heading">Ingredients</div>
+            <ul class="demo-list">
+              <li><span class="demo-bullet">•</span> 2 tbsp olive oil</li>
+              <li><span class="demo-bullet">•</span> 1 onion, chopped</li>
+              <li><span class="demo-bullet">•</span> 2 cloves garlic</li>
+              <li><span class="demo-bullet">•</span> 1 cup cherry tomatoes</li>
+              <li><span class="demo-bullet">•</span> Salt &amp; pepper</li>
+            </ul>
+          </div>
+
+          <div class="demo-directions">
+            <div class="demo-heading">Directions</div>
+            <ul class="demo-list">
+              <li>
+                <span class="demo-bullet">1.</span>
+                <span>
+                  Warm the
+                  <span class="badge">olive oil</span>
+                  in a pan over medium heat.
+                </span>
+              </li>
+              <li>
+                <span class="demo-bullet">2.</span>
+                <span>
+                  Add the
+                  <span class="badge done">onion</span>
+                  and
+                  <span class="badge">garlic</span>,
+                  cooking until soft.
+                </span>
+              </li>
+              <li>
+                <span class="demo-bullet">3.</span>
+                <span>
+                  Stir in the
+                  <span class="badge">cherry tomatoes</span>
+                  and season with
+                  <span class="badge">salt</span>
+                  and
+                  <span class="badge">pepper</span>.
+                </span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="privacy-strip">
+            <div>
+              RecipeFix runs entirely in your browser, on top of the recipes you already use.
+              It never sends your ingredients, cooking steps, or browsing history anywhere.
+            </div>
+            <div class="privacy-pill-row">
+              <span class="privacy-pill">No accounts</span>
+              <span class="privacy-pill">No analytics</span>
+              <span class="privacy-pill">No personal data collection</span>
+            </div>
+            <div>
+              It requests access to all websites only so it can support recipes on any site you choose.
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div>
+        &copy; <span id="year"></span> RecipeFix. All rights reserved.
+      </div>
+      <nav>
+        <a href="privacy.html">Privacy</a>
+        <span>·</span>
+        <a href="https://github.com/autopilot869/recipefix">View on GitHub</a>
+      </nav>
+    </footer>
+  </div>
+
+  <script>
+    (function () {
+      var yearSpan = document.getElementById("year");
+      if (yearSpan) {
+        yearSpan.textContent = new Date().getFullYear().toString();
+      }
+    })();
+  </script>
+</body>
+</html>
